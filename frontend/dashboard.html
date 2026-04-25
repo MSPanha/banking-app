@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexBank — Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .welcome { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+    .balance-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: start;
+    }
+    .balance-label { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .balance-amount { font-family: 'Syne', sans-serif; font-size: 48px; font-weight: 800; letter-spacing: -2px; color: var(--accent2); }
+    .account-num { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+    .quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .action-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .action-btn:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--glow); }
+    .action-icon { font-size: 28px; margin-bottom: 8px; }
+    .action-label { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; }
+    .section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    @media (max-width: 600px) {
+      .balance-hero { grid-template-columns: 1fr; }
+      .balance-amount { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">Nex<span>Bank</span></div>
+    <ul>
+      <li><a href="dashboard.html" class="active">Dashboard</a></li>
+      <li><a href="deposit.html">Deposit</a></li>
+      <li><a href="transfer.html">Transfer</a></li>
+      <li><a href="loans.html">Loans</a></li>
+    </ul>
+    <div class="nav-right">
+      <span id="nav-name" style="font-size:14px; color:var(--text-muted)"></span>
+      <button class="btn btn-outline" style="padding:8px 16px;font-size:13px" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <p class="welcome">Welcome back,</p>
+      <h1 id="user-name">Loading...</h1>
+    </div>
+
+    <!-- Balance Hero -->
+    <div class="balance-hero">
+      <div>
+        <div class="balance-label">Available Balance</div>
+        <div class="balance-amount" id="balance">$0.00</div>
+        <div class="account-num" id="account-num">Account: —</div>
+      </div>
+      <div style="min-width:300px">
+        <div class="bank-card">
+          <div class="card-chip"></div>
+          <div class="card-number" id="card-number">•••• •••• •••• ••••</div>
+          <div class="card-bottom">
+            <div>
+              <div class="card-label">Card Holder</div>
+              <div class="card-value" id="card-holder">—</div>
+            </div>
+            <div>
+              <div class="card-label">Expires</div>
+              <div class="card-value" id="card-expiry">—</div>
+            </div>
+            <div>
+              <div class="card-label">CVV</div>
+              <div class="card-value" id="card-cvv">•••</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <a class="action-btn" href="deposit.html">
+        <div class="action-icon">💰</div>
+        <div class="action-label">Deposit</div>
+      </a>
+      <a class="action-btn" href="transfer.html">
+        <div class="action-icon">↗️</div>
+        <div class="action-label">Transfer</div>
+      </a>
+      <a class="action-btn" href="loans.html">
+        <div class="action-icon">🏦</div>
+        <div class="action-label">Loans</div>
+      </a>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="section-title">Recent Transactions</div>
+    <div id="tx-list" class="tx-list">
+      <div class="empty-state"><div class="icon">📭</div><p>No transactions yet</p></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth()
+
+    async function loadDashboard() {
+      try {
+        const [profile, account, txList] = await Promise.all([
+          apiFetch('/accounts/profile'),
+          apiFetch('/accounts/me'),
+          apiFetch('/transactions/history')
+        ])
+
+        document.getElementById('user-name').textContent = profile.full_name
+        document.getElementById('nav-name').textContent = profile.full_name
+        document.getElementById('balance').textContent = formatCurrency(account.balance)
+        document.getElementById('account-num').textContent = 'Account: ' + account.account_number
+        document.getElementById('card-number').textContent = account.card_number
+        document.getElementById('card-holder').textContent = profile.full_name.split(' ')[0].toUpperCase()
+        document.getElementById('card-expiry').textContent = account.card_expiry
+        document.getElementById('card-cvv').textContent = account.card_cvv
+
+        if (txList.length > 0) {
+          document.getElementById('tx-list').innerHTML = txList.map(tx => {
+            const isDeposit = tx.type === 'deposit'
+            const isCredit = isDeposit || tx.type === 'loan_disbursement'
+            const icons = { deposit: '💰', transfer: '↗️', loan_disbursement: '🏦', loan_repayment: '💳' }
+            return `
+              <div class="tx-item">
+                <div class="tx-icon ${tx.type}">${icons[tx.type] || '💸'}</div>
+                <div class="tx-info">
+                  <div class="tx-type">${tx.type.charAt(0).toUpperCase() + tx.type.slice(1).replace('_', ' ')}</div>
+                  <div class="tx-date">${formatDate(tx.created_at)}</div>
+                </div>
+                <div class="tx-amount ${isCredit ? 'positive' : 'negative'}">
+                  ${isCredit ? '+' : '-'}${formatCurrency(tx.amount)}
+                </div>
+              </div>`
+          }).join('')
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    loadDashboard()
+  </script>
+</body>
+</html>

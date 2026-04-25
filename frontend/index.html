@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexBank — Sign In</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bg-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb1 { width: 400px; height: 400px; background: rgba(108,99,255,0.12); top: -100px; right: -100px; }
+    .orb2 { width: 300px; height: 300px; background: rgba(0,212,170,0.08); bottom: -50px; left: -50px; }
+
+    .auth-container {
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .auth-logo .logo {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .auth-logo p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+    }
+
+    .tabs {
+      display: flex;
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo">Nex<span>Bank</span></div>
+      <p>Your modern banking experience</p>
+    </div>
+
+    <div class="auth-box">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('signin')">Sign In</button>
+        <button class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- SIGN IN -->
+      <div id="signin-form" class="auth-form active">
+        <div id="signin-alert" class="alert"></div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="signin-email" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signin-password" placeholder="••••••••"/>
+        </div>
+        <button class="btn btn-primary btn-full" id="signin-btn" data-label="Sign In" onclick="handleSignIn()">
+          Sign In
+        </button>
+      </div>
+
+      <!-- SIGN UP -->
+      <div id="signup-form" class="auth-form">
+        <div id="signup-alert" class="alert"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="signup-name" placeholder="John Doe"/>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="signup-phone" placeholder="+1 234 567"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="signup-email" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signup-password" placeholder="Min. 6 characters"/>
+        </div>
+        <button class="btn btn-success btn-full" id="signup-btn" data-label="Create Account" onclick="handleSignUp()">
+          Create Account
+        </button>
+      </div>
+
+      <div class="auth-footer">
+        🔒 Your data is encrypted and secure
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (getToken()) window.location.href = 'dashboard.html'
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (i === 0 && tab === 'signin') || (i === 1 && tab === 'signup'))
+      })
+      document.getElementById('signin-form').classList.toggle('active', tab === 'signin')
+      document.getElementById('signup-form').classList.toggle('active', tab === 'signup')
+    }
+
+    async function handleSignIn() {
+      const email = document.getElementById('signin-email').value.trim()
+      const password = document.getElementById('signin-password').value
+      if (!email || !password) return showAlert('signin-alert', 'Please fill in all fields')
+
+      setLoading('signin-btn', true)
+      try {
+        const data = await apiFetch('/auth/signin', {
+          method: 'POST',
+          body: JSON.stringify({ email, password })
+        })
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        window.location.href = 'dashboard.html'
+      } catch (err) {
+        showAlert('signin-alert', err.message)
+        setLoading('signin-btn', false)
+      }
+    }
+
+    async function handleSignUp() {
+      const full_name = document.getElementById('signup-name').value.trim()
+      const phone = document.getElementById('signup-phone').value.trim()
+      const email = document.getElementById('signup-email').value.trim()
+      const password = document.getElementById('signup-password').value
+      if (!full_name || !email || !password) return showAlert('signup-alert', 'Please fill required fields')
+      if (password.length < 6) return showAlert('signup-alert', 'Password must be at least 6 characters')
+
+      setLoading('signup-btn', true)
+      try {
+        await apiFetch('/auth/signup', {
+          method: 'POST',
+          body: JSON.stringify({ full_name, phone, email, password })
+        })
+        showAlert('signup-alert', '🎉 Account created! Please sign in.', 'success')
+        setTimeout(() => switchTab('signin'), 1500)
+      } catch (err) {
+        showAlert('signup-alert', err.message)
+      }
+      setLoading('signup-btn', false)
+    }
+
+    // Allow Enter key
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const active = document.querySelector('.auth-form.active').id
+        active === 'signin-form' ? handleSignIn() : handleSignUp()
+      }
+    })
+  </script>
+</body>
+</html>

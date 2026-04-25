@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NexBank — Loans</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .loans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .loan-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .loan-header { display: flex; justify-content: space-between; align-items: center; }
+    .loan-amount { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--accent); }
+    .loan-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .loan-detail span { display: block; color: var(--text); font-weight: 500; margin-top: 2px; }
+    .calc-box { background: rgba(108,99,255,0.06); border: 1px solid rgba(108,99,255,0.2); border-radius: 12px; padding: 16px; margin: 16px 0; }
+    .calc-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; }
+    .calc-row strong { color: var(--accent); font-family: 'Syne', sans-serif; }
+    .loans-list { display: flex; flex-direction: column; gap: 12px; }
+    @media (max-width: 768px) { .loans-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">Nex<span>Bank</span></div>
+    <ul>
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="deposit.html">Deposit</a></li>
+      <li><a href="transfer.html">Transfer</a></li>
+      <li><a href="loans.html" class="active">Loans</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="btn btn-outline" style="padding:8px 16px;font-size:13px" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>🏦 Loans</h1>
+      <p>Apply for a loan and track your applications</p>
+    </div>
+
+    <div class="loans-grid">
+      <!-- Apply Form -->
+      <div class="card">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:20px">Apply for a Loan</div>
+        <div id="loan-alert" class="alert"></div>
+
+        <div class="form-group">
+          <label>Loan Amount</label>
+          <input type="number" id="loan-amount" placeholder="e.g. 5000" min="100" oninput="calcLoan()"/>
+        </div>
+
+        <div class="form-group">
+          <label>Duration (Months)</label>
+          <select id="loan-duration" onchange="calcLoan()">
+            <option value="3">3 Months</option>
+            <option value="6" selected>6 Months</option>
+            <option value="12">12 Months</option>
+            <option value="24">24 Months</option>
+            <option value="36">36 Months</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Loan Purpose</label>
+          <select>
+            <option>🏠 Home Improvement</option>
+            <option>🚗 Vehicle Purchase</option>
+            <option>💼 Business</option>
+            <option>🎓 Education</option>
+            <option>💊 Medical</option>
+            <option>📦 Other</option>
+          </select>
+        </div>
+
+        <div class="calc-box" id="calc-box" style="display:none">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:8px;font-size:14px">Loan Estimate</div>
+          <div class="calc-row"><span>Principal</span><strong id="calc-principal">$0</strong></div>
+          <div class="calc-row"><span>Interest Rate</span><strong>5% p.a.</strong></div>
+          <div class="calc-row"><span>Total Interest</span><strong id="calc-interest">$0</strong></div>
+          <div class="calc-row"><span>Monthly Payment</span><strong id="calc-monthly">$0</strong></div>
+          <div class="calc-row"><span>Total Repayment</span><strong id="calc-total">$0</strong></div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="loan-btn" data-label="Submit Application" onclick="handleLoan()">
+          Submit Application
+        </button>
+
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px;text-align:center">
+          Applications are reviewed within 24 hours. Interest rate: 5% p.a.
+        </p>
+      </div>
+
+      <!-- My Loans -->
+      <div>
+        <div class="card">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:20px">My Loan Applications</div>
+          <div class="loans-list" id="loans-list">
+            <div class="empty-state"><div class="icon">📋</div><p>No loan applications yet</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth()
+
+    function calcLoan() {
+      const amount = parseFloat(document.getElementById('loan-amount').value)
+      const months = parseInt(document.getElementById('loan-duration').value)
+      if (!amount || amount <= 0) { document.getElementById('calc-box').style.display = 'none'; return; }
+
+      const rate = 5 / 100 / 12
+      const monthly = (amount * rate * Math.pow(1 + rate, months)) / (Math.pow(1 + rate, months) - 1)
+      const total = monthly * months
+      const interest = total - amount
+
+      document.getElementById('calc-box').style.display = 'block'
+      document.getElementById('calc-principal').textContent = formatCurrency(amount)
+      document.getElementById('calc-interest').textContent = formatCurrency(interest)
+      document.getElementById('calc-monthly').textContent = formatCurrency(monthly)
+      document.getElementById('calc-total').textContent = formatCurrency(total)
+    }
+
+    async function loadLoans() {
+      try {
+        const loans = await apiFetch('/loans/my')
+        if (loans.length === 0) return
+
+        document.getElementById('loans-list').innerHTML = loans.map(loan => `
+          <div class="loan-card">
+            <div class="loan-header">
+              <div class="loan-amount">${formatCurrency(loan.amount)}</div>
+              <span class="badge badge-${loan.status}">${loan.status}</span>
+            </div>
+            <div class="loan-details">
+              <div class="loan-detail">Duration<span>${loan.duration_months} months</span></div>
+              <div class="loan-detail">Interest<span>${loan.interest_rate}% p.a.</span></div>
+              <div class="loan-detail">Monthly<span>${formatCurrency((loan.amount * (5/100/12) * Math.pow(1+(5/100/12), loan.duration_months)) / (Math.pow(1+(5/100/12), loan.duration_months) - 1))}</span></div>
+              <div class="loan-detail">Applied<span>${formatDate(loan.created_at)}</span></div>
+            </div>
+          </div>`).join('')
+      } catch (err) { console.error(err) }
+    }
+
+    async function handleLoan() {
+      const amount = parseFloat(document.getElementById('loan-amount').value)
+      const duration_months = parseInt(document.getElementById('loan-duration').value)
+      if (!amount || amount <= 0) return showAlert('loan-alert', 'Please enter a valid loan amount')
+
+      setLoading('loan-btn', true)
+      try {
+        await apiFetch('/loans/apply', {
+          method: 'POST',
+          body: JSON.stringify({ amount, duration_months })
+        })
+        showAlert('loan-alert', '✅ Loan application submitted! We\'ll review it within 24 hours.', 'success')
+        document.getElementById('loan-amount').value = ''
+        document.getElementById('calc-box').style.display = 'none'
+        await loadLoans()
+      } catch (err) {
+        showAlert('loan-alert', err.message)
+      }
+      setLoading('loan-btn', false)
+    }
+
+    loadLoans()
+  </script>
+</body>
+</html>
