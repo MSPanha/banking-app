@@ -1,4 +1,4 @@
-const API = 'http://localhost:5000/api'
+const API = 'https://nexbank-backend.onrender.com/api'
 
 function getToken() {
   return localStorage.getItem('token')
